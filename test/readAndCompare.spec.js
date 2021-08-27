@@ -50,41 +50,96 @@ const getJsonData = () => {
 
 const canReadAndCompare = async () => {
     const dbData = await getDBData();
+    // console.log(dbData);
     const jsonData = getJsonData();
 
-    let overlapCount = 0;
-    let unOverlapCount = 0;
+    const updateArray = [];
 
-    for(let jsonItem of jsonData){
-        let isOverlap = false;
-        for(let dbItem of dbData){
-
-
-            if(dbItem.name === jsonItem.name){
-                console.log(dbItem.id);
-
-
-                let open_day = "";
-
-                if(jsonItem.business_hour.open_hour.length > 0){
-                    jsonItem.business_hour.open_hour.map(item=>{
-                        console.log(item);
-                        console.log(item.day.join(""));
-                    });
-                }
-                // if(jsonItem.business_hour.closed.length > 0){
-                //     jsonItem.business_hour.closed.map(item=>{
-                //         console.log(item);
-                //     });
-                // }
-            }
-        }
-        if(!isOverlap){
-            unOverlapCount++;
+    for(let dbItem of dbData){
+        if(dbItem.id >= 3760){
+            updateArray.push(dbItem);
         }
     }
+    // console.log(updateArray);
+
+
+    const updateArray2 = [];
+    let count = 0;
+    for(let jsonItem of jsonData){
+        // console.log(item);
+        let result = false;
+        let id = 0;
+        for(let item of updateArray){
+            if(jsonItem.name === item.name && jsonItem.address === item.address){
+                result = true;
+                id = item.id;
+            }
+        }
+        if(result){
+
+            const resInfo = { 
+                restaurant_id: "",
+                close_day:"",
+                start_time:"",
+                end_time:"",
+                memo:"",
+                menu: [],
+                images:[]
+            };
+
+            resInfo.restaurant_id = id;
+            //     // 매장 이름
+
+
+            // 매장 영업시간
+            if(jsonItem.business_hour.open_hour.length > 0){
+                resInfo.start_time = jsonItem.business_hour.open_hour[0].start_time;
+                resInfo.end_time = jsonItem.business_hour.open_hour[0].end_time;
+            }
+
+            // 휴무, 특이사항 
+            if(jsonItem.business_hour.closed.length > 0){
+                resInfo.close_day = jsonItem.business_hour.closed[0].day.join(",");
+                resInfo.memo = jsonItem.business_hour.closed[0].memo ? jsonItem.business_hour.closed[0].memo : "";
+            }
+
+            resInfo.menu = jsonItem.menu;
+
+            resInfo.images = jsonItem.images;
+            updateArray2.push(resInfo);
+        }
+    }
+    // console.log(updateArray2);
+
+    let query = `insert into p_restaurant_images(restaurant_id, image_path, preview_image_path) values`;
+    for(let item of updateArray2){
+        // console.log(item.restaurant_id);
+        // console.log(item.close_day);
+        // console.log(item.images);
+
+        if(item.images.image_list.length > 0 ){
+            for(let image of item.images.image_list){
+                query += `(${item.restaurant_id}, '${image}', '${"preview_"+image}'),\n`;
+            }
+        }
+    }
+
+    const _q = query.slice(0, -2);
     
-    // console.log(overlapCount);
-    // console.log(unOverlapCount);
+    console.log(_q);
+    
+    await queryBuilder(_q)
+        .catch(err => {
+            console.log(err);
+            throw new Error(err);
+        });
+    
+    console.log("success insert");
 }
+
+
+
 canReadAndCompare();
+
+// if(!isOverlap){
+
